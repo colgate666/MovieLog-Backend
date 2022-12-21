@@ -1,0 +1,41 @@
+{
+  "name": "movielog",
+  "version": "1.0.0",
+  "description": "Backend for the MovieLog app",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon dev/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/colgate666/MovieLog-Backend.git"
+  },
+  "keywords": [
+    "javascript",
+    "typescript",
+    "npm",
+    "fastify",
+    "movies",
+    "nodejs",
+    "android"
+  ],
+  "author": "colgate666",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/colgate666/MovieLog-Backend/issues"
+  },
+  "homepage": "https://github.com/colgate666/MovieLog-Backend#readme",
+  "dependencies": {
+    "@fastify/helmet": "^10.1.0",
+    "dotenv": "^16.0.3",
+    "fastify": "^4.10.2",
+    "slonik": "^33.0.6",
+    "typescript": "^4.9.4",
+    "zod": "^3.20.2"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.17",
+    "nodemon": "^2.0.20"
+  }
+}
