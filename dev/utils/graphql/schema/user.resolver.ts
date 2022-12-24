@@ -1,12 +1,8 @@
-import { Arg, Ctx, Field, ID, InputType, Mutation, ObjectType, Query, Resolver } from "type-graphql";
+import { Arg, Ctx, Field, ID, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import { Message } from "../../types/message";
 import { GraphQLContext } from "../context";
 import { v4 } from "uuid";
-import fs, { mkdir, writeFile } from "fs";
-import path from "path";
-import { appRoot } from "../../..";
-import { promisify } from "util";
-import { detectMimeType } from "../../mimetype";
+import { saveFromBase64 } from "../../image.handler";
 
 @ObjectType()
 class User {
@@ -43,22 +39,7 @@ export class UserResolver {
         @Arg("image", { nullable: true }) avatar?: string,
     ): Promise<User> {
         const id = v4();
-        let imgPath: string | undefined;
-        
-        if (avatar) {
-            const buffer = Buffer.from(avatar, "base64");
-            const mimetype = detectMimeType(avatar);
-
-            const md = promisify(mkdir);
-            const wf = promisify(writeFile);
-            const ip = path.join(appRoot, "public", "images", "avatars");
-
-            await md(ip, { recursive: true });
-            const p = path.join(ip, `${id}.${mimetype}`); 
-
-            await wf(p, buffer);
-            imgPath = p;
-        }
+        const imgPath = await saveFromBase64(id, avatar);
 
         const result = await context.dataSources.dbSource.insertUser({
             email,
@@ -74,5 +55,21 @@ export class UserResolver {
         }
 
         return result as User;
+    }
+
+    @Mutation(returns => String)
+    async login(
+        @Arg("user") user: string,
+        @Arg("password") password: string,
+        @Ctx() context: GraphQLContext,
+    ) {
+        const result = await context.dataSources.dbSource.isRegistered(user, password);
+        const message = await Message.spa(result);
+
+        if (message.success) {
+            throw new Error(JSON.stringify(message.data));
+        }
+
+        return result as string;
     }
 }
