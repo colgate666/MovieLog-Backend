@@ -1,8 +1,8 @@
-import { Arg, Ctx, Field, ID, Mutation, ObjectType, Query, Resolver } from "type-graphql";
+import { Arg, Ctx, Field, ID, InputType, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import { Message } from "../../types/message";
 import { GraphQLContext } from "../context";
-import { v4 } from "uuid";
 import { saveFromBase64 } from "../../image.handler";
+import { IsBase64, IsEmail, Length } from "class-validator";
 
 @ObjectType()
 class User {
@@ -15,59 +15,94 @@ class User {
     @Field()
     email!: string;
 
+    @Field()
+    password!: string;
+
     @Field({ nullable: true })
     avatar?: string;
 }
 
+@InputType()
+class RegisterInput implements Partial<User> {
+    @Field()
+    @Length(3, 30, { message: "Username length must be between 3 and 30 characters." })
+    username!: string;
+
+    @Field()
+    @IsEmail()
+    email!: string;
+
+    @Field()
+    @Length(3, 30, { message: "Password length must be between 3 and 30 characters." })
+    password!: string;
+
+    @Field({ nullable: true })
+    avatar?: string;
+}
+
+@InputType()
+class LoginInput implements Partial<User> {
+    @Field()
+    user!: string;
+
+    @Field()
+    @Length(3, 30, { message: "Password length must be between 3 and 30 characters." })
+    password!: string;
+}
+
 @Resolver(User)
 export class UserResolver {
+
     @Query(returns => User)
-    async getUser(): Promise<User> {
-        return {
-           email: "asd",
-           username: "asdasd",
-           id: "asdasdasd"
+    async getUserByUsernameOrEmail(
+        @Arg("user") user: string,
+        @Ctx() context: GraphQLContext,
+    ) {
+        const result = await context.dataSources.dbSource.getUserByNameOrEmail(user, user);
+        const message = await Message.spa(result);
+
+        if (message.success) {
+            throw new Error(message.data.message);
         }
+
+        return result;
     }
 
     @Mutation(returns => User)
     async addUser(
-        @Arg("username") username: string,
-        @Arg("email") email: string,
-        @Arg("password") password: string,
+        @Arg("input") registerInput: RegisterInput,
         @Ctx() context: GraphQLContext,
-        @Arg("image", { nullable: true }) avatar?: string,
     ): Promise<User> {
-        const id = v4();
-        const imgPath = await saveFromBase64(id, avatar);
-
         const result = await context.dataSources.dbSource.insertUser({
-            email,
-            password,
-            username,
-            avatar: imgPath,
-        }, id);
+            email: registerInput.email,
+            password: registerInput.password,
+            username: registerInput.username,
+        });
 
         const isMessage = await Message.spa(result);
 
         if (isMessage.success) {
-            throw new Error(JSON.stringify(isMessage.data));
+            throw new Error(isMessage.data.message);
         }
 
-        return result as User;
+        const usr = result as User;
+
+        await saveFromBase64(usr.id, registerInput.avatar);
+        return usr;
     }
 
     @Mutation(returns => String)
     async login(
-        @Arg("user") user: string,
-        @Arg("password") password: string,
+        @Arg("input") loginInput: LoginInput,
         @Ctx() context: GraphQLContext,
     ) {
-        const result = await context.dataSources.dbSource.isRegistered(user, password);
+        const result = await context.dataSources.dbSource.isRegistered(
+            loginInput.user, loginInput.password
+        );
         const message = await Message.spa(result);
 
         if (message.success) {
-            throw new Error(JSON.stringify(message.data));
+            throw new Error(message.data.message);
         }
 
         return result as string;

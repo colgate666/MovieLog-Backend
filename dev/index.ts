@@ -13,6 +13,7 @@ import { DBDataSource } from "./utils/graphql/data.sources/db.source";
 import { readFileSync } from "fs";
 import { schema } from "./utils/graphql/schema";
 import path from "path";
+import { myFormatError } from "./utils/graphql/format.error";
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ const apollo = new ApolloServer<GraphQLContext>({
       : ApolloServerPluginLandingPageLocalDefault({ footer: false }),
     ],
     nodeEnv: process.env.NODE_ENV,
+    formatError: myFormatError
 });
 
 export const LOG = server.log;

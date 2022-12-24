@@ -27,7 +27,7 @@ export class DBDataSource {
         }
     }
 
-    async insertUser(user: UserRegister, id: string): Promise<User | Message> {
+    async insertUser(user: UserRegister): Promise<User | Message> {
         try {
             const registered = await this.getUserByNameOrEmail(user.username, user.email);
             const isMessage = await Message.spa(registered);
@@ -45,8 +45,8 @@ export class DBDataSource {
                 const ePass = await bcrypt.hash(user.password, 11);
 
                 const query = sql.type(User)`
-                    INSERT INTO users(id, username, email, password, avatar) 
-                    VALUES(${id}, ${user.username}, ${user.email}, ${ePass}, ${user?.avatar ?? null})
+                    INSERT INTO users(username, email, password, avatar) 
+                    VALUES(${user.username}, ${user.email}, ${ePass}, ${user?.avatar ?? null})
                     RETURNING *
                 `;
 
@@ -92,7 +92,7 @@ export class DBDataSource {
 
     async isRegistered(user: string, password: string): Promise<Message | string> {
         try {
-            const res = await this.getUserByNameOrEmail(user, user);
+            const res = await this.getUserById(user);
             const message = await Message.spa(res);
 
             if (message.success) {

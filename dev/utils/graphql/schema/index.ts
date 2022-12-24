@@ -3,4 +3,5 @@ import { UserResolver } from "./user.resolver";
 
 export const schema = buildSchemaSync({
     resolvers: [UserResolver],
+    validate: { forbidUnknownValues: false }
 });
