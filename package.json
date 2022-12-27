@@ -30,6 +30,7 @@
     "@apollo/server": "^4.3.0",
     "@as-integrations/fastify": "^1.2.0",
     "@fastify/helmet": "^10.1.0",
+    "@fastify/static": "^6.6.0",
     "bcrypt": "^5.1.0",
     "class-validator": "^0.14.0",
     "dotenv": "^16.0.3",

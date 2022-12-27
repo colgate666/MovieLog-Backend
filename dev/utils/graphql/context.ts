@@ -1,8 +1,9 @@
 import { ApolloFastifyContextFunction } from "@as-integrations/fastify";
-import { DB, LOG } from "../..";
+import { DB, MOVIEDB } from "../..";
 import { DBDataSource } from "./data.sources/db.source";
 import jwt from "jsonwebtoken";
 import { Message } from "../types/message";
+import { MovieDataSource } from "./data.sources/movie.source";
 
 interface User {
     id: String;
@@ -13,6 +14,7 @@ interface User {
 export interface GraphQLContext {
     dataSources: {
         dbSource: DBDataSource;
+        movieSource: MovieDataSource;
     };
     user?: User;
 }
@@ -35,6 +37,7 @@ export const context: ApolloFastifyContextFunction<GraphQLContext> = async reque
     return {
         dataSources: {
             dbSource: DB,
+            movieSource: MOVIEDB,
         },
         user,
     }

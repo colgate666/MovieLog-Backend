@@ -87,7 +87,12 @@ export class UserResolver {
 
         const usr = result as User;
 
-        await saveFromBase64(usr.id, registerInput.avatar);
+        const file = await saveFromBase64(usr.id, registerInput.avatar);
+        
+        if (file) {
+            await context.dataSources.dbSource.setAvatar(usr.id, file);
+        }
+
         return usr;
     }
 

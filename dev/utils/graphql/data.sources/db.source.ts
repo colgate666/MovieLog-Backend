@@ -61,6 +61,31 @@ export class DBDataSource {
         }
     }
 
+    async setAvatar(id: string, file: string): Promise<Message> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(User)`
+                    UPDATE users 
+                    SET avatar = ${file}
+                    WHERE id = ${id}
+                `;
+
+                await conn.query(query);
+
+                return {
+                    code: 200,
+                    message: "Avatar updated",
+                };
+            });
+        } catch (err) {
+            LOG.error(err);
+            return {
+                message: "Error registering user.",
+                code: 500,
+            };
+        }
+    }
+
     async getUserByNameOrEmail(username: string, email: string): Promise<User | Message> {
         try {
             return await this.dbPool!.connect(async conn => {

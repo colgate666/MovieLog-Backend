@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 import "reflect-metadata";
 import fastify from "fastify";
-import { movieDbClientInit } from "./utils/moviedb.client";
 import { ApolloServer } from "@apollo/server";
 import fastifyApollo, { fastifyApolloDrainPlugin } from "@as-integrations/fastify";
 import { 
@@ -10,10 +9,12 @@ import {
 } from '@apollo/server/plugin/landingPage/default';
 import { context, GraphQLContext } from "./utils/graphql/context";
 import { DBDataSource } from "./utils/graphql/data.sources/db.source";
-import { readFileSync } from "fs";
 import { schema } from "./utils/graphql/schema";
 import path from "path";
 import { myFormatError } from "./utils/graphql/format.error";
+import { MovieDataSource } from "./utils/graphql/data.sources/movie.source";
+import { avatarRouter } from "./utils/routers/user.images";
+import fastifyStatic from "@fastify/static";
 
 dotenv.config();
 
@@ -39,17 +40,20 @@ const apollo = new ApolloServer<GraphQLContext>({
 
 export const LOG = server.log;
 export const DB = new DBDataSource();
+export const MOVIEDB = new MovieDataSource();
 
 (async () => {
     await apollo.start();
 
     await server.register(fastifyApollo(apollo), { context });
-    //await server.register(fastifyHelmet);
-
-    //server.get("/api", fastifyApolloHandler(apollo));
+    await server.register(avatarRouter, { prefix: "/user" });
+    await server.register(fastifyStatic, {
+        root: path.join(appRoot, "public"),
+        wildcard: false,
+    });
 
     server.listen({ port: PORT, host: "0.0.0.0" }, async (err, add) => {
-        if (err || !movieDbClientInit()) {
+        if (err) {
             server.log.error(err);
             process.exit(1);
         }

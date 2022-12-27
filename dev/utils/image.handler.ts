@@ -22,7 +22,7 @@ export const saveFromBase64 = async (filename: string, data?: string): Promise<s
     
         await wf(p, buffer);
     
-        return p;
+        return `${filename}.${mimetype}`;
     } catch (err) {
         LOG.error(err);
         return undefined;
