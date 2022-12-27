@@ -1,4 +1,4 @@
-import { Arg, Ctx, Field, ID, ObjectType, Query, Resolver } from "type-graphql";
+import { Arg, Ctx, Field, ID, InputType, ObjectType, Query, Resolver } from "type-graphql";
 import { GraphQLContext } from "../context";
 
 @ObjectType()
@@ -15,14 +15,55 @@ export class Movie {
     @Field()
     overview!: string
 
-    @Field()
-    imagePath!: string
+    @Field({ nullable: true })
+    imagePath?: string
 
     @Field()
     rating!: number
 
     @Field(type => [String])
     genres!: string[]
+}
+
+@ObjectType()
+export class MoviePages {
+    @Field(type => [Movie])
+    movies!: Movie[]
+
+    @Field()
+    total_results!: number
+
+    @Field()
+    total_pages!: number
+
+    @Field()
+    page!: number
+}
+
+@InputType()
+export class MovieByQueryInput {
+    @Field()
+    query!: string
+
+    @Field()
+    page!: number
+}
+
+@Resolver(MoviePages)
+export class MoviePagesResolver {
+    @Query(returns => MoviePages)
+    async getMoviesByQuery(
+        @Arg("input") input: MovieByQueryInput,
+        @Ctx() context: GraphQLContext,
+    ) {
+        const movies = await context.dataSources.movieSource.getMoviesByQuery(input.query, input.page);
+
+        if (!movies) {
+            throw new Error("Error fetching movies");
+        }
+
+        return movies;
+    }
 }
 
 @Resolver(Movie)
