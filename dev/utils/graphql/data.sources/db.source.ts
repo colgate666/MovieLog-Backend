@@ -4,6 +4,9 @@ import { User, UserRegister } from "../../types/db.types/user";
 import { Message } from "../../types/message";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { WatchedMovie, WatchlistItem } from "../../types/db.types/movies";
+import { Watchlist } from "../schema/watchlist.resolver";
+import { WatchedMovies } from "../schema/review.resolver";
 
 export class DBDataSource {
     private dbPool: DatabasePool | undefined;
@@ -176,6 +179,90 @@ export class DBDataSource {
                 message: "Error fetching users.",
                 code: 500,
             };
+        }
+    }
+
+    async getUserWatchlist(id: string): Promise<Watchlist | null> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(WatchlistItem)`
+                    SELECT * FROM watchlists 
+                    WHERE user_id = ${id}
+                `;
+
+                const result = await conn.query(query);
+
+                return {
+                    user_id: id,
+                    movies: result.rows.map(v => v.movie_id),
+                };
+            });
+        } catch (err) {
+            LOG.error(err);
+            return null;
+        }
+    }
+
+    async addToWatchlist(user: string, movie: number): Promise<boolean> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(WatchlistItem)`
+                    INSERT INTO watchlists(user_id, movie_id)
+                    VALUES(${user}, ${movie})
+                `;
+
+                await conn.query(query);
+
+                return true;
+            });
+        } catch (err) {
+            LOG.error(err);
+            return false;
+        }
+    }
+
+    async removeFromWatchlist(user: string, movie: number): Promise<boolean> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(WatchlistItem)`
+                    DELETE FROM watchlists
+                    WHERE user_id = ${user} AND movie_id = ${movie}
+                `;
+
+                await conn.query(query);
+
+                return true;
+            });
+        } catch (err) {
+            LOG.error(err);
+            return false;
+        }
+    }
+
+    async getWatchedMovies(user: string): Promise<WatchedMovies | null> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(WatchedMovie)`
+                    SELECT * FROM watched
+                    WHERE user_id = ${user}
+                `;
+
+                const result = await conn.query(query);
+
+                return {
+                    user_id: user,
+                    movies: result.rows.map(v => ({
+                        movie_id: v.movie_id,
+                        liked: v.liked,
+                        added_date: v.added_date,
+                        review: v.review,
+                        rating: v.rating,
+                    })),
+                };
+            });
+        } catch (err) {
+            LOG.error(err);
+            return null;
         }
     }
 }

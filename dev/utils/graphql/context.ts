@@ -6,9 +6,9 @@ import { Message } from "../types/message";
 import { MovieDataSource } from "./data.sources/movie.source";
 
 interface User {
-    id: String;
-    email: String;
-    username: String;
+    id: string;
+    email: string;
+    username: string;
 }
 
 export interface GraphQLContext {
