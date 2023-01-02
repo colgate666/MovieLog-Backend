@@ -28,7 +28,7 @@ export class WatchlistResolver {
         return watchlist;
     }
 
-    @Mutation(returns => Boolean)
+    @Mutation(returns => String)
     async addToWatchlist(
         @Arg("movie") movie: number,
         @Ctx() context: GraphQLContext 
@@ -37,8 +37,13 @@ export class WatchlistResolver {
             throw new Error("Auth token missing. Cannot complete the requested operation.");
         }
 
-        const added = await context.dataSources.dbSource.addToWatchlist(context.user.id, movie);
-        return added;
+        const response = await context.dataSources.dbSource.addToWatchlist(context.user.id, movie);
+        
+        if (response.code === 500) {
+            throw new Error(response.message);
+        }
+
+        return response.message;
     }
 
     @Mutation(returns => Boolean)

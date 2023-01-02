@@ -4,9 +4,9 @@ import { User, UserRegister } from "../../types/db.types/user";
 import { Message } from "../../types/message";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { WatchedMovie, WatchlistItem } from "../../types/db.types/movies";
+import { LikedMovie, MovieReviewDB, WatchlistItem } from "../../types/db.types/movies";
 import { Watchlist } from "../schema/watchlist.resolver";
-import { WatchedMovies } from "../schema/review.resolver";
+import { MovieReview } from "../schema/review.resolver";
 
 export class DBDataSource {
     private dbPool: DatabasePool | undefined;
@@ -182,6 +182,24 @@ export class DBDataSource {
         }
     }
 
+    async isMovieInWatchlist(user: string, movie: number): Promise<boolean> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(WatchlistItem)`
+                    SELECT * FROM watchlists 
+                    WHERE user_id = ${user} AND movie_id = ${movie}
+                `;
+
+                const result = await conn.maybeOne(query);
+
+                return result != null;
+            });
+        } catch (err) {
+            LOG.error(err);
+            return false;
+        }
+    }
+
     async getUserWatchlist(id: string): Promise<Watchlist | null> {
         try {
             return await this.dbPool!.connect(async conn => {
@@ -203,8 +221,17 @@ export class DBDataSource {
         }
     }
 
-    async addToWatchlist(user: string, movie: number): Promise<boolean> {
+    async addToWatchlist(user: string, movie: number): Promise<Message> {
         try {
+            const isRegistered = await this.isMovieInWatchlist(user, movie);
+
+            if (isRegistered) {
+                return {
+                    code: 200,
+                    message: "Movie already in your watchlist.",
+                };
+            }
+
             return await this.dbPool!.connect(async conn => {
                 const query = sql.type(WatchlistItem)`
                     INSERT INTO watchlists(user_id, movie_id)
@@ -213,11 +240,17 @@ export class DBDataSource {
 
                 await conn.query(query);
 
-                return true;
+                return {
+                    code: 200,
+                    message: "Movie added to your watchlist.",
+                };
             });
         } catch (err) {
             LOG.error(err);
-            return false;
+            return {
+                code: 500,
+                message: "Error adding the movie to your watchlist.",
+            };
         }
     }
 
@@ -239,30 +272,104 @@ export class DBDataSource {
         }
     }
 
-    async getWatchedMovies(user: string): Promise<WatchedMovies | null> {
+    async getMovieReport(user: string, movie: number): Promise<MovieReview | null> {
         try {
             return await this.dbPool!.connect(async conn => {
-                const query = sql.type(WatchedMovie)`
-                    SELECT * FROM watched
-                    WHERE user_id = ${user}
+                const query = sql.type(LikedMovie)`
+                    SELECT * FROM liked_movies WHERE user_id = ${user} AND movie_id = ${movie}
                 `;
 
-                const result = await conn.query(query);
+                const liked = await conn.maybeOne(query) != null;
+
+                const query2 = sql.type(MovieReviewDB)`
+                    SELECT * FROM movie_reviews WHERE user_id = ${user} AND movie_id = ${movie}
+                `;
+
+                const review = await conn.maybeOne(query2);
 
                 return {
-                    user_id: user,
-                    movies: result.rows.map(v => ({
-                        movie_id: v.movie_id,
-                        liked: v.liked,
-                        added_date: v.added_date,
-                        review: v.review,
-                        rating: v.rating,
-                    })),
+                    movie_id: movie,
+                    liked,
+                    inWatchlist: await this.isMovieInWatchlist(user, movie),
+                    review: review === null ? undefined : {
+                        added_date: review.added_date,
+                        rating: review.rating,
+                        review: review.review,
+                    },
                 };
             });
         } catch (err) {
             LOG.error(err);
             return null;
+        }
+    }
+
+    async isMovieInLikes(user: string, movie: number): Promise<boolean> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(WatchlistItem)`
+                    SELECT * FROM liked_movies 
+                    WHERE user_id = ${user} AND movie_id = ${movie}
+                `;
+
+                const result = await conn.maybeOne(query);
+
+                return result != null;
+            });
+        } catch (err) {
+            LOG.error(err);
+            return false;
+        }
+    }
+
+    async addToLikes(user: string, movie: number): Promise<Message> {
+        try {
+            const isRegistered = await this.isMovieInLikes(user, movie);
+
+            if (isRegistered) {
+                return {
+                    code: 200,
+                    message: "Movie already in your likes.",
+                };
+            }
+
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(WatchlistItem)`
+                    INSERT INTO liked_movies(user_id, movie_id)
+                    VALUES(${user}, ${movie})
+                `;
+
+                await conn.query(query);
+
+                return {
+                    code: 200,
+                    message: "Movie added to your likes.",
+                };
+            });
+        } catch (err) {
+            LOG.error(err);
+            return {
+                code: 500,
+                message: "Error adding the movie to your likes.",
+            };
+        }
+    }
+
+    async removeFromLikes(user: string, movie: number): Promise<boolean> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(WatchlistItem)`
+                    DELETE FROM liked_movies
+                    WHERE user_id = ${user} AND movie_id = ${movie}
+                `;
+
+                await conn.query(query);
+
+                return true;
+            });
+        } catch (err) {
+            LOG.error(err);
+            return false;
         }
     }
 }
