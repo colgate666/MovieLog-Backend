@@ -2,7 +2,7 @@ import { Arg, Ctx, Field, ID, InputType, Mutation, ObjectType, Query, Resolver }
 import { Message } from "../../types/message";
 import { GraphQLContext } from "../context";
 import { saveFromBase64 } from "../../image.handler";
-import { IsBase64, IsEmail, Length } from "class-validator";
+import { IsEmail, Length } from "class-validator";
 
 @ObjectType()
 class User {
@@ -20,6 +20,12 @@ class User {
 
     @Field({ nullable: true })
     avatar?: string;
+
+    @Field(type => [Number])
+    watchlist!: number[]
+
+    @Field(type => [Number])
+    likes!: number[]
 }
 
 @InputType()
@@ -111,5 +117,33 @@ export class UserResolver {
         }
 
         return result as string;
+    }
+
+    @Query(returns => User)
+    async getUserData(@Ctx() context: GraphQLContext): Promise<User> {
+        if (!context.user) {
+            throw new Error("Auth token missing. Cannot retrieve user data.");
+        }
+
+        const userData = await context.dataSources.dbSource.getUser(context.user.id);
+        const isMessage = await Message.spa(userData);
+
+        if (isMessage.success) {
+            throw new Error(isMessage.data.message);
+        }
+
+        const watchlist = await context.dataSources.dbSource.getUserWatchlist(context.user.id);
+        const likes = await context.dataSources.dbSource.getUserLikes(context.user.id);
+        const user = userData as User;
+
+        return {
+            id: user.id,
+            avatar: user.avatar,
+            email: user.email,
+            password: "",
+            username: user.username,
+            likes: likes ?? [],
+            watchlist: watchlist?.movies ?? []
+        };
     }
 }

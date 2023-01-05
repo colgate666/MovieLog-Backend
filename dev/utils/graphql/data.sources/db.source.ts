@@ -118,6 +118,34 @@ export class DBDataSource {
         }
     }
 
+    async getUser(userId: string): Promise<User | Message> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(User)`
+                    SELECT * FROM users
+                    WHERE id = ${userId}
+                `;
+
+                const user = await conn.maybeOne(query);
+
+                if (user) {
+                    return user;
+                } else {
+                    return {
+                        message: "User not found.",
+                        code: 404,
+                    };
+                }
+            });
+        } catch (err) {
+            LOG.error(err);
+            return {
+                message: "Error fetching users.",
+                code: 500,
+            };
+        }
+    }
+
     async isRegistered(user: string, password: string): Promise<Message | string> {
         try {
             const res = await this.getUserById(user);
@@ -287,6 +315,12 @@ export class DBDataSource {
 
                 const review = await conn.maybeOne(query2);
 
+                const query3 = sql.type(User)`
+                    SELECT username, avatar FROM users WHERE user_id = ${user}
+                `;
+
+                const userData = await conn.one(query3);
+
                 return {
                     movie_id: movie,
                     liked,
@@ -295,6 +329,8 @@ export class DBDataSource {
                         added_date: review.added_date,
                         rating: review.rating,
                         review: review.review,
+                        username: userData.username,
+                        avatar: userData.avatar
                     },
                 };
             });
@@ -370,6 +406,24 @@ export class DBDataSource {
         } catch (err) {
             LOG.error(err);
             return false;
+        }
+    }
+
+    async getUserLikes(id: string): Promise<number[] | null> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(WatchlistItem)`
+                    SELECT * FROM liked_movies
+                    WHERE user_id = ${id}
+                `;
+
+                const result = await conn.query(query);
+
+                return result.rows.map(v => v.movie_id)
+            });
+        } catch (err) {
+            LOG.error(err);
+            return null;
         }
     }
 }

@@ -3,6 +3,12 @@ import { GraphQLContext } from "../context";
 
 @ObjectType()
 class ReviewBody {
+    @Field()
+    username!: string;
+
+    @Field()
+    avatar?: string;
+
     @Field({ nullable: true })
     rating?: number;
 
@@ -75,8 +81,21 @@ export class MovieReviewResolver {
             throw new Error("Auth token missing. Cannot retrieve user data.");
         }
 
-        const response = await context.dataSources.dbSource.removeFromLikes(context.user.id, movie_id);
+        return await context.dataSources.dbSource.removeFromLikes(context.user.id, movie_id);
+    }
 
-        return response;
+    @Query(returns => [Number])
+    async likedMovies(@Arg("movie_id") movie_id: number, @Ctx() context: GraphQLContext) {
+        if (!context.user) {
+            throw new Error("Auth token missing. Cannot retrieve user data.");
+        }
+
+        const response = await context.dataSources.dbSource.getUserLikes(context.user.id);
+
+        if (response) {
+            return response;
+        }
+
+        return [];
     }
 }
