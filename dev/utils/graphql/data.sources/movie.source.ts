@@ -30,6 +30,7 @@ export class MovieDataSource {
     async getMovieById(id: number): Promise<Movie | null> {
         try {
             const movie = await this.movieDb.movieInfo({ id });
+            const credits = await this.movieDb.movieCredits({ id });
 
             return {
                 id: movie.id!,
@@ -39,6 +40,20 @@ export class MovieDataSource {
                 release_date: movie.release_date!,
                 title: movie.title!,
                 genres: movie.genres!.map(genre => genre.name!),
+                budget: movie.budget,
+                revenue: movie.revenue,
+                cast: credits.cast?.map(value => ({
+                    id: value.id!,
+                    name: value.original_name!,
+                    character_name: value.character!,
+                    image: value.profile_path!
+                })),
+                crew: credits.crew?.map(value => ({
+                    id: value.id!,
+                    name: value.name!,
+                    job: value.job!,
+                    image: value.profile_path!
+                }))
             }
         } catch (err) {
             LOG.error(err);

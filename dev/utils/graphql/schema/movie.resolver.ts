@@ -2,6 +2,36 @@ import { Arg, Ctx, Field, ID, InputType, ObjectType, Query, Resolver } from "typ
 import { GraphQLContext } from "../context";
 
 @ObjectType()
+class Cast {
+    @Field(type => ID)
+    id!: number
+
+    @Field()
+    name!: string
+
+    @Field()
+    character_name!: string
+
+    @Field({ nullable: true })
+    image?: string
+}
+
+@ObjectType()
+class Crew {
+    @Field(type => ID)
+    id!: number
+
+    @Field()
+    name!: string
+
+    @Field({ nullable: true })
+    job?: string
+
+    @Field({ nullable: true })
+    image?: string
+}
+
+@ObjectType()
 export class Movie {
     @Field(type => ID)
     id!: number
@@ -23,6 +53,18 @@ export class Movie {
 
     @Field(type => [String])
     genres!: string[]
+
+    @Field({ nullable: true })
+    budget?: number
+
+    @Field({ nullable: true })
+    revenue?: number
+
+    @Field(type => [Crew], { nullable: true })
+    crew?: Crew[]
+
+    @Field(type => [Cast], { nullable: true })
+    cast?: Cast[]
 }
 
 @ObjectType()
