@@ -119,6 +119,22 @@ export class UserResolver {
         return result as string;
     }
 
+    @Mutation(returns => Boolean)
+    async setAvatar(@Arg("avatar") avatar: string, @Ctx() context: GraphQLContext): Promise<Boolean> {
+        if (!context.user) {
+            throw new Error("Auth token missing. Cannot retrieve user data.");
+        }
+
+        const file = await saveFromBase64(context.user.id, avatar);
+
+        if (file) {
+            const response = await context.dataSources.dbSource.setAvatar(context.user.id, file);
+            return response.code === 200;
+        }
+
+        return false;
+    }
+
     @Query(returns => User)
     async getUserData(@Ctx() context: GraphQLContext): Promise<User> {
         if (!context.user) {
