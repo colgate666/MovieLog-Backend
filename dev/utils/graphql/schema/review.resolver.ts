@@ -1,8 +1,17 @@
-import { Arg, Ctx, Field, Mutation, ObjectType, Query, Resolver } from "type-graphql";
+import {Arg, Ctx, Field, ID, InputType, Mutation, ObjectType, Query, Resolver} from "type-graphql";
 import { GraphQLContext } from "../context";
 
 @ObjectType()
-class ReviewBody {
+export class ReviewBody {
+    @Field(type => ID)
+    id!: string;
+
+    @Field()
+    movie_id!: number;
+
+    @Field()
+    user_id!: string;
+
     @Field()
     username!: string;
 
@@ -32,6 +41,21 @@ export class MovieReview {
 
     @Field({ nullable: true })
     review?: ReviewBody;    
+}
+
+@InputType()
+export class ReviewInput {
+    @Field()
+    movie_id!: number;
+
+    @Field({ nullable: true })
+    rating?: number;
+
+    @Field({ nullable: true })
+    review?: string;
+
+    @Field()
+    added_date!: string;
 }
 
 @Resolver(MovieReview)
@@ -97,5 +121,36 @@ export class MovieReviewResolver {
         }
 
         return [];
+    }
+
+    @Query(returns => [ReviewBody])
+    async movieReviews(@Arg("movie_id") movie_id: number, @Ctx() context: GraphQLContext): Promise<ReviewBody[]> {
+        const response = await context.dataSources.dbSource.getMovieReviews(movie_id);
+
+        if (response === null) {
+            throw new Error("Error fetching movie reviews.");
+        }
+
+        return response;
+    }
+
+    @Query(returns => [ReviewBody])
+    async userReviews(@Arg("user_id") user_id: string, @Ctx() context: GraphQLContext): Promise<ReviewBody[]> {
+        const response = await context.dataSources.dbSource.getUserReviews(user_id);
+
+        if (response === null) {
+            throw new Error("Error fetching user movie reviews.");
+        }
+
+        return response;
+    }
+
+    @Mutation(returns => Boolean)
+    async addReview(@Arg("input") input: ReviewInput, @Ctx() context: GraphQLContext): Promise<Boolean> {
+        if (!context.user) {
+            throw new Error("Auth token missing. Cannot retrieve user data.");
+        }
+
+        return await context.dataSources.dbSource.addMoviewReview(input, context.user.id);
     }
 }

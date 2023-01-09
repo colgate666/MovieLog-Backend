@@ -10,6 +10,8 @@ export const WatchlistItem = MovieItem;
 export const LikedMovie = MovieItem;
 
 export const MovieReviewDB = MovieItem.extend({
+    username: z.string(),
+    avatar: z.string().optional(),
     rating: z.number().optional(),
     review: z.string().optional(),
     added_date: z.string().datetime(),

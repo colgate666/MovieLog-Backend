@@ -6,7 +6,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { LikedMovie, MovieReviewDB, WatchlistItem } from "../../types/db.types/movies";
 import { Watchlist } from "../schema/watchlist.resolver";
-import { MovieReview } from "../schema/review.resolver";
+import {MovieReview, ReviewBody, ReviewInput} from "../schema/review.resolver";
 
 export class DBDataSource {
     private dbPool: DatabasePool | undefined;
@@ -155,7 +155,7 @@ export class DBDataSource {
                 if (message.data.code === 404) {
                     return message.data;
                 }
-                
+
                 return {
                     code: 500,
                     message: "Error loging in.",
@@ -316,7 +316,7 @@ export class DBDataSource {
                 const review = await conn.maybeOne(query2);
 
                 const query3 = sql.type(User)`
-                    SELECT username, avatar FROM users WHERE user_id = ${user}
+                    SELECT username, avatar FROM users WHERE id = ${user}
                 `;
 
                 const userData = await conn.one(query3);
@@ -326,6 +326,9 @@ export class DBDataSource {
                     liked,
                     inWatchlist: await this.isMovieInWatchlist(user, movie),
                     review: review === null ? undefined : {
+                        id: review.id,
+                        movie_id: review.movie_id,
+                        user_id: user,
                         added_date: review.added_date,
                         rating: review.rating,
                         review: review.review,
@@ -424,6 +427,144 @@ export class DBDataSource {
         } catch (err) {
             LOG.error(err);
             return null;
+        }
+    }
+
+    async getUserReviews(user: string): Promise<ReviewBody[] | null> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(MovieReviewDB)`
+                    SELECT
+                        users.id as user_id,
+                        users.username,
+                        users.avatar,
+                        movie_reviews.id,
+                        movie_reviews.movie_id,
+                        movie_reviews.added_date,
+                        movie_reviews.review,
+                        movie_reviews.rating
+                    FROM movie_reviews
+                    INNER JOIN users ON users.id = movie_reviews.user_id
+                    WHERE users.id = ${user}
+                `;
+
+                const result = await conn.query(query);
+
+                return result.rows.map(value => ({
+                    id: value.id,
+                    user_id: user,
+                    movie_id: value.movie_id,
+                    username: value.username,
+                    avatar: value.avatar,
+                    review: value.review,
+                    rating: value.rating,
+                    added_date: value.added_date
+                }));
+            });
+        } catch (err) {
+            LOG.error(err);
+            return null;
+        }
+    }
+
+    async getMovieReviews(movie: number): Promise<ReviewBody[] | null> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(MovieReviewDB)`
+                    SELECT
+                        users.id as user_id,
+                        users.username,
+                        users.avatar,
+                        movie_reviews.id,
+                        movie_reviews.movie_id,
+                        movie_reviews.added_date,
+                        movie_reviews.review,
+                        movie_reviews.rating
+                    FROM movie_reviews
+                    INNER JOIN users ON users.id = movie_reviews.user_id
+                    WHERE movie_reviews.movie_id = ${movie}
+                `;
+
+                const result = await conn.query(query);
+
+                return result.rows.map(value => ({
+                    id: value.id,
+                    user_id: value.user_id,
+                    movie_id: value.movie_id,
+                    username: value.username,
+                    avatar: value.avatar,
+                    review: value.review,
+                    rating: value.rating,
+                    added_date: value.added_date
+                }));
+            });
+        } catch (err) {
+            LOG.error(err);
+            return null;
+        }
+    }
+
+    async addMoviewReview(input: ReviewInput, user: string): Promise<boolean> {
+        try {
+            if (await this.isMovieReviewed(user, input.movie_id)) {
+                return await this.updateMoviewReview(input, user);    
+            }
+
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(MovieReviewDB)`
+                    INSERT INTO
+                        movie_reviews(movie_id, user_id, review, rating, added_date)
+                    VALUES
+                        (${input.movie_id}, ${user}, ${input.review ?? null}, ${input.rating ?? null}, ${input.added_date})
+                `;
+
+                await conn.query(query);
+                return true;
+            });
+        } catch (err) {
+            LOG.error(err);
+            return false;
+        }
+    }
+
+    async updateMoviewReview(input: ReviewInput, user: string): Promise<boolean> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(MovieReviewDB)`
+                    UPDATE
+                        movie_reviews
+                    SET
+                        review = ${input.review ?? null},
+                        rating = ${input.rating ?? null},
+                        added_date = ${input.added_date}
+                    WHERE
+                        movie_id = ${input.movie_id}
+                    AND
+                        user_id = ${user}
+                `;
+
+                await conn.query(query);
+                return true;
+            });
+        } catch (err) {
+            LOG.error(err);
+            return false;
+        }
+    }
+
+    async isMovieReviewed(user: string, movie: number): Promise<boolean> {
+        try {
+            return await this.dbPool!.connect(async conn => {
+                const query = sql.type(MovieReviewDB)`
+                    SELECT * FROM movie_reviews WHERE user_id = ${user} AND movie_id = ${movie}
+                `;
+
+                const result = await conn.maybeOne(query);
+                return result !== null;
+            });
+        } catch (err) {
+            LOG.error(err);
+            return false;
         }
     }
 }
